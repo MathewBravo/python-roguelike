@@ -1,25 +1,52 @@
 from __future__ import annotations
-from typing import Iterable, TYPE_CHECKING
+from typing import Iterable, TYPE_CHECKING, Optional, Iterator
 
 import numpy as np
 
 from tcod.console import Console
 
 import tile_types
+from entity import Actor
 
 if TYPE_CHECKING:
+    from engine import Engine
     from entity import Entity
 
 
 class GameMap:
-    def __init__(self, width: int, height: int, entities: Iterable[Entity] = ()):
-        self.width, self.height = width, height
+    def __init__(self, engine: Engine, width: int, height: int, entities: Iterable[Entity] = ()):
+        self.engine = engine
+        self.width = width
+        self.height = height
         self.entities = set(entities)
         self.tiles = np.full((width, height), fill_value=tile_types.wall, order="F")
         self.visible = np.full((width, height), fill_value=False, order="F")
         self.explored = np.full((width, height), fill_value=False, order="F")
 
-    def in_bouds(self, x: int, y: int) -> bool:
+    @property
+    def actors(self) -> Iterator[Actor]:
+        yield from (
+            entity
+            for entity in self.entities
+            if isinstance(entity, Actor) and entity.is_alive
+        )
+
+    def get_blocking_entity_at_location(self, location_x: int, location_y: int, ) -> Optional[Entity]:
+        for entity in self.entities:
+            if (
+                    entity.blocks_movement and
+                    entity.x == location_x and
+                    entity.y == location_y
+            ):
+                return entity
+
+    def get_actor_at_location(self, x: int, y: int) -> Optional[Actor]:
+        for actor in self.actors:
+            if actor.x == x and actor.y == y:
+                return actor
+        return None
+
+    def in_bounds(self, x: int, y: int) -> bool:
         return 0 <= x < self.width and 0 <= y < self.height
 
     def render(self, console: Console) -> None:
